@@ -1,0 +1,72 @@
+import snowflake.connector
+import os
+import pandas
+
+proxy_http = 'http://a-proxy-p.bc.jsplc.net:8080'
+proxy_https = 'https://a-proxy-p.bc.jsplc.net:8080'
+os.environ['http_proxy'] = proxy_http
+os.environ['https_proxy'] = proxy_https
+
+user = 'NEHA_SHARMA'
+password = 'Microsoft1$'
+account = 'sainsburys.eu-west-1'
+database = 'ADW_PROD'
+schema = 'ADW_RDV'
+SNOWFLAKE_ROLE = 'ADW_DEV_DEVELOPER'
+SNOWFLAKE_WAREHOUSE = 'ADW_HEAVY_ADHOC_WH'
+
+ctx = snowflake.connector.connect(user=user, password=password, account='sainsburys.eu-west-1')
+cs = ctx.cursor()
+cs.execute("use role {};".format(SNOWFLAKE_ROLE))
+cs.execute("use warehouse {}; ".format(SNOWFLAKE_WAREHOUSE))
+cs.execute("use database {};".format(database))
+cs.execute("use schema {};".format(schema))
+cs.execute("alter warehouse {} resume if suspended;".format(SNOWFLAKE_WAREHOUSE))
+
+
+def duplicate_finder(database, schema, table, keys, domain, date_key, severity='3', dq_rule_id='2'):
+    key_pair = keys.replace(",", '||\' | \'||')
+    return (
+        f'INSERT INTO ADW_DEV.ADW_DQ_AUDIT.DATA_QUALITY_LOG(\
+             EXCEPTION_OBJECT_UNIQUE_KEY\
+            ,SOURCE_OBJECT\
+            ,LOAD_TS\
+            ,EXCEPTION_SEVERITY_LEVEL\
+            ,DQ_RULE_ID \
+            ,DQ_LOG_TS\
+            ,DQ_LOG_ID \
+            ,EXCEPTION_OBJECT_KEY_VALUE\
+            ,BUSINESS_TS\
+            ,IRM_L1_Domain)\
+                            SELECT  \'{keys}\',\'{table}\',{date_key},{severity},{dq_rule_id},TO_TIMESTAMP_NTZ(CURRENT_TIMESTAMP()),\
+                            adw_dev.adw_dq_audit.data_quality_log_id.nextval,{key_pair},{date_key},\'{domain}\' \
+                            FROM {database}.{schema}.{table} WHERE ({keys}) IN (SELECT {keys} FROM {database}.{schema}.{table}  WHERE {date_key}>CURRENT_DATE-30 GROUP BY {keys} HAVING COUNT(*)>1 ORDER BY {keys} DESC)')
+
+query = ' SELECT DATABASE_NAME,SCHEMA_NAME,TABLE_NAME,UNIQUE_KEYS,DATE_PARAMETER,IRM_L1_DOMAIN FROM ADW_DEV.ADW_DQ_AUDIT.DATA_QUALITY_KEYS '
+
+df1 = pandas.read_sql_query(query , ctx)
+rows = range(len(df1))
+print(rows)
+
+for i in rows:
+    print(i)
+    db = df1.loc[i]['DATABASE_NAME']
+    print(db)
+    sc = df1.loc[i]['SCHEMA_NAME']
+    print(sc)
+    tb = df1.loc[i]['TABLE_NAME']
+    print(tb)
+    key_input = df1.loc[i]['UNIQUE_KEYS']
+    date_key_input = df1.loc[i]['DATE_PARAMETER']
+    domain_input = df1.loc[i]['IRM_L1_DOMAIN']
+    print(domain_input)
+
+
+    sql = duplicate_finder(database = db , schema = sc , table = tb ,
+                       keys = key_input, date_key = date_key_input, domain = domain_input)
+    print(sql)
+    df = pandas.read_sql_query(sql, ctx)
+    print(df)
+
+cs.close()
+
