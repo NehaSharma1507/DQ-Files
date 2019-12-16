@@ -8,12 +8,12 @@ try:
     os.environ['http_proxy'] = proxy_http
     os.environ['https_proxy'] = proxy_https
 
-    user = 'NEHA_SHARMA'
-    password = 'Microsoft1$'
-    account = 'sainsburys.eu-west-1'
+    user = '****'
+    password = '*****'
+    account = '****'
     database = 'ADW_PROD'
     schema = 'ADW_RDV'
-    SNOWFLAKE_ROLE = 'ADW_DEV_DEVELOPER'
+    SNOWFLAKE_ROLE = '****'
     SNOWFLAKE_WAREHOUSE = 'ADW_HEAVY_ADHOC_WH'
 
     ctx = snowflake.connector.connect(user=user, password=password, account='sainsburys.eu-west-1')
