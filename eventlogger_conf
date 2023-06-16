@@ -1,0 +1,11 @@
+SELECT DISTINCT
+  booking.resnum AS resnum,
+  TO_DATE(CAST(from_utc_timestamp(utcdatetime, 'Europe/London') AS STRING)) AS converted_date,
+  session.correlationid AS correlationid,*
+--  MAX(CASE WHEN t.[Tracking_key] = 'aid' THEN t.[Tracking_value] ELSE NULL END) AS transaction_aid
+FROM src_kafka.eventlogger_conf c
+LEFT JOIN src_titan1.bcars_tracking_info t ON CAST(t.reserv_num AS INT) = CAST(c.booking.resnum AS INT)
+WHERE subtype = 'booking'
+  AND TO_DATE(CAST(from_utc_timestamp(utcdatetime, 'Europe/London') AS STRING)) = '2023-06-14'
+  AND c.session.correlationid IS NULL
+ORDER BY c.booking.resnum;
